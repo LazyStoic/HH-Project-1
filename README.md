@@ -53,7 +53,7 @@ The prototype demos this with a 20-second cooldown so the state is observable. E
 
 ### 5. Patient consent
 
-Patient records are only visible in the network once the patient has explicitly consented to sharing. Records without consent appear in the list but their clinical content is locked. Consent can be granted or withdrawn at any time.
+Patient records are only visible in the network once the patient has explicitly consented to sharing. Only the originating clinic — the clinic that owns the record — can grant or revoke consent. Other clinics viewing a non-consented record see an "Awaiting consent" badge with no interactive option. Consent granted by the origin clinic propagates immediately across the network.
 
 This reflects the real-world legal constraint: HIPAA requires patient authorisation for sharing records between non-treating providers. The system is not viable without it. A natural extension is tiered consent — a patient can consent to share with any clinic in the network, or only with clinics their current provider has referred them to, which reinforces the referral network mechanism.
 
@@ -77,6 +77,21 @@ In the new equilibrium, sharing is the dominant strategy. Opting out means losin
 
 ---
 
+## Patient history — four-section layout
+
+The patient history tab segments records into four labelled sections based on each clinic's relationship to the patient. The section ordering is intentional: the highest-value information appears first.
+
+| Section | Who sees it | What it shows |
+|---|---|---|
+| **Seen elsewhere** | Clinics where a patient is active but originated elsewhere | History from the network — this is the core value proposition |
+| **Your patients** | The clinic that originated the record | Always fully visible. Only this clinic can grant or revoke consent. |
+| **Referred in** | Clinics a patient has been formally referred to | Full access when opted in — referral implies pre-consent. Referring clinic name is shown (not redacted). |
+| **Network records** | All other clinics | Browsable when opted in and consented |
+
+When a clinic is opted out, "Seen elsewhere", "Referred in", and "Network records" still show patient names and conditions but immediately display a lock banner: *"Opt in to sharing to unlock this patient's history."* The cost of opting out is visible without requiring any clicks.
+
+---
+
 ## Prototype walkthrough
 
 The app simulates 5 clinics at different points in the adoption curve. Each can be viewed from its own perspective.
@@ -87,17 +102,17 @@ The app simulates 5 clinics at different points in the adoption curve. Each can 
 
 2. **Select Eastern Women's Health.** The control bar shows a live cooldown countdown — this clinic recently opted out and is locked out of re-enrollment. Watch the countdown expire, then toggle sharing back on.
 
-3. **Select Bayside Rehabilitation** (sharing off, no cooldown). The patient history tab is locked. This is the pre-system state — a clinic that wants to receive but won't share.
+3. **Select Bayside Rehabilitation** (sharing off). In the patient history tab, the "Seen elsewhere" section appears at the top with an amber banner: *"2 patients active here have history in the network that you can't access."* The lock banners are visible immediately — no clicking required. This is the cost of opting out made visceral.
 
-4. **Toggle sharing on.** Access unlocks immediately. The network banner updates. The share count increments to reflect records now entering the network.
+4. **Toggle sharing on.** The lock banners disappear. Nina Brooks (seen elsewhere, consented) unlocks immediately. James Okafor (seen elsewhere, no consent) stays locked with "Awaiting consent" — because Bayside doesn't own that record, they cannot grant consent themselves.
 
-5. **Notice two patient records are locked** (Priya Sharma, Elena Vasquez). These patients haven't consented. The record header is visible but the clinical content is hidden. Click "Grant consent" on one — the record unlocks and the access counter updates.
+5. **Switch to Central Sports Physio.** Under "Your patients", Priya Sharma shows "Not shared". Click "Grant consent" — her record is now visible to the network. Note that only Central Sports sees this button; other clinics viewing Priya's record see "Awaiting consent" with no option to interact.
 
-6. **Expand a consented record.** Every record shows `Source: [redacted]`. The anonymisation is structural — there is no way to reveal the originating clinic or clinician.
+6. **Expand a consented network record.** Every non-owned record shows `Source: [redacted]` in the expanded view. The anonymisation is structural — there is no way to reveal the originating clinic or clinician.
 
-7. **Switch to the Referral network tab.** Send a referral to another clinic. Watch the bilateral relationship form — both clinics now show the connection as active.
+7. **Switch to the Referral network tab.** Send a referral to another clinic. Watch the bilateral relationship form — both clinics now show the connection as active. Switch to the referred-to clinic and check the "Referred in" section — the patient appears there with a "Referred by [clinic name]" badge (source is not redacted for referrals — the receiving clinic knows who sent them) and full access to the clinical history.
 
-8. **Toggle sharing off on any clinic.** The control bar immediately switches to the cooldown state. Access is revoked instantly.
+8. **Toggle sharing off on any clinic.** The control bar immediately switches to the cooldown state. Access is revoked instantly and re-enrollment is locked.
 
 9. **Toggle all 5 clinics to sharing on.** The banner hits 100%. All five mechanics are visible end-to-end.
 
@@ -123,9 +138,10 @@ npm run dev
 ```
 kinetic-network/
   src/
-    App.jsx      # All UI components and state logic
-    data.js      # Simulated clinic and patient data
-    index.css    # Tailwind import
+    App.jsx       # All UI components and state logic
+    data.js       # Simulated clinic and patient data (13 patients, 5 clinics)
+    classify.js   # classifyPatient(patient, clinicId) — pure classification helper
+    index.css     # Tailwind import
   index.html
   vite.config.js
 ```
