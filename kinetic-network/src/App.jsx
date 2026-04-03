@@ -1,0 +1,629 @@
+import { useState, useEffect } from "react";
+import { PATIENTS, INITIAL_CLINICS, COOLDOWN_MS } from "./data";
+import {
+  Lock,
+  Unlock,
+  Share2,
+  ArrowRight,
+  CheckCircle,
+  XCircle,
+  Eye,
+  EyeOff,
+  Users,
+  Clock,
+  ShieldCheck,
+} from "lucide-react";
+
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+function Badge({ children, color = "gray" }) {
+  const colors = {
+    green: "bg-green-100 text-green-800",
+    red: "bg-red-100 text-red-800",
+    blue: "bg-blue-100 text-blue-800",
+    gray: "bg-gray-100 text-gray-700",
+    amber: "bg-amber-100 text-amber-800",
+    orange: "bg-orange-100 text-orange-800",
+  };
+  return (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${colors[color]}`}>
+      {children}
+    </span>
+  );
+}
+
+function StatPill({ label, value, color }) {
+  const colors = {
+    blue: "bg-blue-50 border-blue-200 text-blue-700",
+    green: "bg-green-50 border-green-200 text-green-700",
+  };
+  return (
+    <div className={`flex flex-col items-center border rounded-lg px-3 py-2 ${colors[color]}`}>
+      <span className="text-xl font-bold leading-tight">{value}</span>
+      <span className="text-xs font-medium opacity-70">{label}</span>
+    </div>
+  );
+}
+
+// Returns seconds remaining in cooldown, or 0 if expired / no cooldown.
+function useCooldownSeconds(cooldownUntil) {
+  const remaining = () =>
+    cooldownUntil ? Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000)) : 0;
+  const [secs, setSecs] = useState(remaining);
+
+  useEffect(() => {
+    if (!cooldownUntil) return;
+    const id = setInterval(() => {
+      const r = remaining();
+      setSecs(r);
+      if (r === 0) clearInterval(id);
+    }, 500);
+    return () => clearInterval(id);
+  }, [cooldownUntil]);
+
+  return secs;
+}
+
+// ─── Network stats banner ────────────────────────────────────────────────────
+
+function NetworkBanner({ clinics }) {
+  const total = clinics.length;
+  const sharing = clinics.filter((c) => c.sharing).length;
+  const pct = Math.round((sharing / total) * 100);
+  const target = 80;
+
+  return (
+    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-6">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-semibold text-indigo-800">
+          Network opt-in rate
+        </span>
+        <span className="text-sm text-indigo-700">
+          {sharing}/{total} clinics sharing —{" "}
+          <strong>{pct}%</strong>
+          <span className="text-indigo-400 ml-1">(target: {target}%)</span>
+        </span>
+      </div>
+      <div className="relative h-3 bg-indigo-100 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+        <div
+          className="absolute top-0 bottom-0 w-0.5 bg-red-400"
+          style={{ left: `${target}%` }}
+        />
+      </div>
+      <p className="text-xs text-indigo-500 mt-1.5">
+        Red marker = 80% target. Toggle sharing on each clinic to watch the bar
+        move.
+      </p>
+    </div>
+  );
+}
+
+// ─── Clinic sidebar ──────────────────────────────────────────────────────────
+
+function ClinicSidebar({ clinics, activeId, onSelect }) {
+  const now = Date.now();
+  return (
+    <aside className="w-64 shrink-0 border-r border-gray-200 pr-4">
+      <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+        Clinics
+      </h2>
+      <ul className="space-y-1.5">
+        {clinics.map((c) => {
+          const inCooldown = c.cooldownUntil && c.cooldownUntil > now;
+          return (
+            <li key={c.id}>
+              <button
+                onClick={() => onSelect(c.id)}
+                className={`w-full text-left px-3 py-2.5 rounded-lg border transition-all ${
+                  activeId === c.id
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50"
+                }`}
+              >
+                <div className="font-medium text-sm leading-tight">{c.name}</div>
+                <div
+                  className={`text-xs mt-0.5 ${
+                    activeId === c.id ? "text-indigo-200" : "text-gray-400"
+                  }`}
+                >
+                  {c.specialty}
+                </div>
+                <div className="mt-1.5">
+                  {inCooldown ? (
+                    <Badge color="orange">Cooling down</Badge>
+                  ) : c.sharing ? (
+                    <Badge color="green">Sharing ON</Badge>
+                  ) : (
+                    <Badge color="red">Sharing OFF</Badge>
+                  )}
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </aside>
+  );
+}
+
+// ─── Patient history panel ───────────────────────────────────────────────────
+
+function PatientPanel({ clinic, patients, onToggleConsent }) {
+  const [expanded, setExpanded] = useState(null);
+
+  if (!clinic.sharing) {
+    const inCooldown = clinic.cooldownUntil && clinic.cooldownUntil > Date.now();
+    return (
+      <div className="flex flex-col items-center justify-center h-72 text-center text-gray-400 border-2 border-dashed border-gray-200 rounded-xl p-8">
+        <Lock size={36} className="mb-3 text-gray-300" />
+        <p className="font-semibold text-gray-500 text-base">
+          Patient history is locked
+        </p>
+        <p className="text-sm mt-1 max-w-xs">
+          <strong className="text-gray-600">{clinic.name}</strong> is not sharing
+          patient history.{" "}
+          {inCooldown
+            ? "Cooldown period active — re-enrollment available once it expires."
+            : "Enable sharing to access the network."}
+        </p>
+        <p className="text-xs mt-3 text-indigo-400">
+          {inCooldown
+            ? "↓ Watch the control bar — access unlocks when the cooldown expires"
+            : "↓ Toggle \"Sharing\" in the control bar to unlock access"}
+        </p>
+      </div>
+    );
+  }
+
+  const consentedCount = patients.filter((p) => p.consented).length;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Unlock size={15} className="text-green-600" />
+          <span className="text-sm text-green-700 font-medium">
+            Network access unlocked — {consentedCount}/{patients.length} records
+            available
+          </span>
+        </div>
+        <span className="text-xs text-gray-400">
+          Records require patient consent to view
+        </span>
+      </div>
+      <ul className="space-y-2">
+        {patients.map((p) => (
+          <li key={p.id} className="border border-gray-200 rounded-lg overflow-hidden">
+            <div
+              className={`w-full flex items-center justify-between px-4 py-3 text-left ${
+                p.consented
+                  ? "bg-white cursor-pointer hover:bg-gray-50"
+                  : "bg-gray-50 cursor-default"
+              }`}
+              onClick={() =>
+                p.consented &&
+                setExpanded((prev) => (prev === p.id ? null : p.id))
+              }
+            >
+              <div>
+                <span className={`font-medium text-sm ${p.consented ? "text-gray-800" : "text-gray-400"}`}>
+                  {p.name}
+                </span>
+                <span className="text-gray-400 text-xs ml-2">age {p.age}</span>
+                <div className={`text-xs mt-0.5 ${p.consented ? "text-gray-500" : "text-gray-400"}`}>
+                  {p.condition}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {p.consented ? (
+                  <>
+                    <Badge color="blue">Source: [redacted]</Badge>
+                    {expanded === p.id ? (
+                      <EyeOff size={14} className="text-gray-400" />
+                    ) : (
+                      <Eye size={14} className="text-gray-400" />
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Badge color="gray">No consent</Badge>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleConsent(p.id);
+                      }}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 hover:border-indigo-400 px-2 py-0.5 rounded-md"
+                    >
+                      Grant consent
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+            {p.consented && expanded === p.id && (
+              <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 text-sm text-gray-700 space-y-2">
+                <div>
+                  <span className="font-medium text-gray-500 text-xs uppercase tracking-wide">
+                    Treatments
+                  </span>
+                  <ul className="mt-1 list-disc list-inside text-gray-700">
+                    {p.treatments.map((t) => (
+                      <li key={t}>{t}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-500 text-xs uppercase tracking-wide">
+                    Clinical notes
+                  </span>
+                  <p className="mt-1">{p.notes}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-500 text-xs uppercase tracking-wide">
+                    Last visit
+                  </span>
+                  <p className="mt-1">{p.lastVisit}</p>
+                </div>
+                <div className="pt-1 border-t border-gray-200">
+                  <Badge color="amber">
+                    Originating clinic &amp; clinician: redacted
+                  </Badge>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Source anonymisation prevents inter-clinic judgment.
+                    Treatment history is shared; professional identity is not.
+                  </p>
+                </div>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ─── Referral panel ──────────────────────────────────────────────────────────
+
+function ReferralPanel({ clinic, clinics, onRefer }) {
+  const others = clinics.filter((c) => c.id !== clinic.id);
+  const gave = (otherId) => clinic.referralsGiven.includes(otherId);
+  const got = (otherId) => clinic.referralsReceived.includes(otherId);
+
+  return (
+    <div>
+      <p className="text-sm text-gray-500 mb-4">
+        Referring a patient builds a bilateral relationship. Specialists return
+        patients for ongoing general care — sharing stops being a competitive
+        threat and becomes a source of inbound referrals.
+      </p>
+      <ul className="space-y-2">
+        {others.map((other) => {
+          const linked = gave(other.id) || got(other.id);
+          return (
+            <li
+              key={other.id}
+              className={`flex items-center justify-between px-4 py-3 rounded-lg border ${
+                linked
+                  ? "border-green-200 bg-green-50"
+                  : "border-gray-200 bg-white"
+              }`}
+            >
+              <div>
+                <div className="font-medium text-sm text-gray-800">
+                  {other.name}
+                </div>
+                <div className="text-xs text-gray-500">{other.specialty}</div>
+                {linked && (
+                  <div className="flex gap-1 mt-1 flex-wrap">
+                    {gave(other.id) && (
+                      <Badge color="green">You referred →</Badge>
+                    )}
+                    {got(other.id) && (
+                      <Badge color="blue">← Referred to you</Badge>
+                    )}
+                  </div>
+                )}
+              </div>
+              {!gave(other.id) ? (
+                <button
+                  onClick={() => onRefer(clinic.id, other.id)}
+                  className="flex items-center gap-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md transition-colors"
+                >
+                  Refer patient <ArrowRight size={12} />
+                </button>
+              ) : (
+                <span className="flex items-center gap-1 text-xs text-green-700">
+                  <CheckCircle size={13} /> Relationship active
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+// ─── Control panel ───────────────────────────────────────────────────────────
+
+function ControlPanel({ clinic, onToggleSharing }) {
+  const cooldownSecs = useCooldownSeconds(clinic.cooldownUntil);
+  const inCooldown = cooldownSecs > 0;
+
+  return (
+    <div className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-xl mb-6">
+      <div className="flex gap-3">
+        <StatPill label="Shared" value={clinic.shareCount} color="blue" />
+        <StatPill label="Received" value={clinic.receiveCount} color="green" />
+      </div>
+      <div className="h-10 w-px bg-gray-200" />
+      <div className="flex-1">
+        <div className="text-sm font-medium text-gray-700">
+          {clinic.name}
+          <span className="text-gray-400 font-normal ml-1.5">
+            · {clinic.location}
+          </span>
+        </div>
+        <div className="text-xs text-gray-400">{clinic.specialty}</div>
+      </div>
+
+      {inCooldown ? (
+        <div className="flex items-center gap-2 px-4 py-2 rounded-lg border bg-orange-50 border-orange-300 text-orange-700 text-sm font-medium">
+          <Clock size={14} />
+          Re-enrollment locked — {cooldownSecs}s remaining
+          <span className="text-orange-400 text-xs font-normal ml-1">
+            (30 days in production)
+          </span>
+        </div>
+      ) : (
+        <button
+          onClick={() => onToggleSharing(clinic.id)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all border ${
+            clinic.sharing
+              ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
+              : "bg-red-50 border-red-300 text-red-700 hover:bg-red-100"
+          }`}
+        >
+          {clinic.sharing ? (
+            <>
+              <Share2 size={14} /> Sharing ON — click to opt out
+            </>
+          ) : (
+            <>
+              <XCircle size={14} /> Sharing OFF — click to opt in
+            </>
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Explainer ───────────────────────────────────────────────────────────────
+
+function Explainer() {
+  const mechanisms = [
+    {
+      icon: <Lock size={16} />,
+      color: "text-red-500",
+      title: "Share-gate",
+      body: "Access to the patient history network requires opt-in. The 71% who want to receive now have a direct personal incentive to share.",
+    },
+    {
+      icon: <Users size={16} />,
+      color: "text-indigo-500",
+      title: "Referral network",
+      body: "Referring builds a bilateral relationship. Specialists return patients for ongoing care. Sharing becomes a source of inbound referrals, not a competitive threat.",
+    },
+    {
+      icon: <EyeOff size={16} />,
+      color: "text-amber-500",
+      title: "Source anonymisation",
+      body: "Treatment history is shared; the originating clinic and clinician are always redacted. Eliminates the fear of professional judgment entirely.",
+    },
+  ];
+
+  const safeguards = [
+    {
+      icon: <Clock size={16} />,
+      color: "text-orange-500",
+      title: "Opt-out cooldown",
+      body: "Clinics that opt out lose access immediately and cannot re-enroll for 30 days. Prevents harvest-and-withdraw gaming — the cost of leaving outweighs the benefit of free-riding.",
+    },
+    {
+      icon: <ShieldCheck size={16} />,
+      color: "text-teal-500",
+      title: "Patient consent",
+      body: "Records are only visible in the network once the patient has consented. Meets HIPAA requirements for sharing between non-treating providers. Consent can be tiered: network-wide or referral-only.",
+    },
+  ];
+
+  return (
+    <div className="mt-8 border-t border-gray-100 pt-6">
+      <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-widest mb-4">
+        Why this gets to 80%
+      </h3>
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        {mechanisms.map((m) => (
+          <div key={m.title} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <div className={`mb-2 ${m.color}`}>{m.icon}</div>
+            <div className="font-semibold text-gray-800 text-sm mb-1">{m.title}</div>
+            <p className="text-xs text-gray-500 leading-relaxed">{m.body}</p>
+          </div>
+        ))}
+      </div>
+
+      <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-widest mb-3 mt-6">
+        Safeguards
+      </h3>
+      <div className="grid grid-cols-2 gap-4">
+        {safeguards.map((s) => (
+          <div key={s.title} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <div className={`mb-2 ${s.color}`}>{s.icon}</div>
+            <div className="font-semibold text-gray-800 text-sm mb-1">{s.title}</div>
+            <p className="text-xs text-gray-500 leading-relaxed">{s.body}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-xs text-indigo-700">
+        <strong>19% → 80%: </strong>The current 19% is an equilibrium produced
+        by misaligned incentives — sharing is altruistic, receiving is free. The
+        share-gate converts the 71% who want to receive into sharers by making
+        sharing the price of admission. The referral network captures remaining
+        holdouts by turning sharing into a source of inbound patients. Source
+        anonymisation removes the professional judgment fear. The cooldown
+        prevents gaming. Patient consent makes it legally viable. Sharing becomes
+        the dominant strategy.
+      </div>
+    </div>
+  );
+}
+
+// ─── Root ─────────────────────────────────────────────────────────────────────
+
+export default function App() {
+  const [clinics, setClinics] = useState(INITIAL_CLINICS);
+  const [patients, setPatients] = useState(PATIENTS);
+  const [activeId, setActiveId] = useState("c1");
+  const [tab, setTab] = useState("history");
+  const [toast, setToast] = useState(null);
+
+  const active = clinics.find((c) => c.id === activeId);
+
+  function showToast(msg) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3500);
+  }
+
+  function toggleSharing(id) {
+    setClinics((prev) =>
+      prev.map((c) => {
+        if (c.id !== id) return c;
+        const next = !c.sharing;
+        if (next) {
+          showToast(`${c.name} opted in — patient history access unlocked.`);
+          return { ...c, sharing: true, cooldownUntil: null, shareCount: c.shareCount + 3 };
+        } else {
+          showToast(`${c.name} opted out — access revoked. Re-enrollment locked for 30 days.`);
+          return { ...c, sharing: false, cooldownUntil: Date.now() + COOLDOWN_MS };
+        }
+      })
+    );
+  }
+
+  function handleRefer(fromId, toId) {
+    setClinics((prev) =>
+      prev.map((c) => {
+        if (c.id === fromId) {
+          const target = prev.find((x) => x.id === toId);
+          showToast(`Referral sent to ${target.name} — bilateral relationship established.`);
+          return { ...c, referralsGiven: [...c.referralsGiven, toId], shareCount: c.shareCount + 1 };
+        }
+        if (c.id === toId) {
+          return { ...c, referralsReceived: [...c.referralsReceived, fromId], receiveCount: c.receiveCount + 1 };
+        }
+        return c;
+      })
+    );
+  }
+
+  function toggleConsent(patientId) {
+    setPatients((prev) =>
+      prev.map((p) => {
+        if (p.id !== patientId) return p;
+        const next = !p.consented;
+        showToast(
+          next
+            ? `${p.name} has consented — record now visible in the network.`
+            : `${p.name}'s consent withdrawn — record hidden from the network.`
+        );
+        return { ...p, consented: next };
+      })
+    );
+  }
+
+  const TABS = [
+    { id: "history", label: "Patient history" },
+    { id: "referrals", label: "Referral network" },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
+        <div>
+          <span className="font-bold text-indigo-700 text-lg tracking-tight">
+            Kinetic
+          </span>
+          <span className="text-gray-400 text-sm ml-2">
+            — Shared patient history network
+          </span>
+        </div>
+        <div className="text-xs text-gray-400">
+          Heidi Health · Product Growth challenge prototype
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-8 py-8">
+        <NetworkBanner clinics={clinics} />
+
+        <div className="flex gap-8">
+          <ClinicSidebar
+            clinics={clinics}
+            activeId={activeId}
+            onSelect={(id) => {
+              setActiveId(id);
+              setTab("history");
+            }}
+          />
+
+          <div className="flex-1 min-w-0">
+            <ControlPanel clinic={active} onToggleSharing={toggleSharing} />
+
+            <div className="flex gap-1 mb-4 bg-gray-100 rounded-lg p-1 w-fit">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    tab === t.id
+                      ? "bg-white shadow-sm text-gray-800"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {tab === "history" ? (
+              <PatientPanel
+                clinic={active}
+                patients={patients}
+                onToggleConsent={toggleConsent}
+              />
+            ) : (
+              <ReferralPanel
+                clinic={active}
+                clinics={clinics}
+                onRefer={handleRefer}
+              />
+            )}
+
+            <Explainer />
+          </div>
+        </div>
+      </main>
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-5 py-2.5 rounded-full shadow-lg">
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
