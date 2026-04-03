@@ -199,26 +199,48 @@ export const PATIENTS = [
     originClinicId: "c5",
     activeAtClinicIds: ["c5", "c3"], // also receiving specialist spinal monitoring at Northern Spine
     referredToClinicId: null,
+    referralNote: null,
+  },
+
+  // ── Geographic referral (c1 → c2) ────────────────────────────────────────
+  // Patient relocated from Melbourne CBD to St Kilda. Not a specialist referral —
+  // a generalist-to-generalist handover for continuity of care.
+
+  {
+    id: "p14",
+    name: "Tom Brekke",
+    age: 44,
+    condition: "Chronic knee pain — ongoing general physiotherapy",
+    treatments: ["Quadriceps strengthening", "Manual therapy", "Activity modification advice"],
+    lastVisit: "2025-12-20",
+    notes: "Good compliance with home program. Relocated — handover to Bayside for geographic continuity.",
+    consented: true,
+    originClinicId: "c1",
+    activeAtClinicIds: ["c1", "c2"],
+    referredToClinicId: "c2",
+    referralNote: "Patient relocated — referred for continuity of care.",
   },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Classification reference (what each clinic sees):
 //
-//  Patient          | c1            | c2            | c3            | c4            | c5
-//  p1  James Okafor | yours         | seen_elsewhere| network       | network       | network
-//  p2  Marcus Webb  | yours         | network       | network       | network       | network
-//  p3  Priya Sharma | yours         | seen_elsewhere| network       | network       | network
-//  p4  Sarah        | referred (←c2)| yours         | network       | network       | network
-//  p5  Nina Brooks  | seen_elsewhere| yours         | network       | network       | network
-//  p6  Marcus Chen  | network       | yours         | network       | network       | network
-//  p7  Diane        | referred (←c3)| network       | yours         | network       | network
-//  p8  Amir Hossain | network       | network       | yours         | network       | network
-//  p9  Frances      | network       | network       | yours         | network       | network
-//  p10 Sophia       | network       | network       | network       | yours         | network
-//  p11 Rachel Nguyen| network       | seen_elsewhere| network       | yours         | network
-//  p12 Liam Foster  | network       | network       | network       | network       | yours
-//  p13 Ruby Chen    | network       | network       | seen_elsewhere| network       | yours
+//  Patient          | c1              | c2              | c3            | c4            | c5
+//  p1  James Okafor | yours           | seen_elsewhere  | network       | network       | network
+//  p2  Marcus Webb  | yours           | network         | network       | network       | network
+//  p3  Priya Sharma | yours           | seen_elsewhere  | network       | network       | network
+//  p4  Sarah        | referred (←c2)  | yours           | network       | network       | network
+//  p5  Nina Brooks  | seen_elsewhere  | yours           | network       | network       | network
+//  p6  Marcus Chen  | network         | yours           | network       | network       | network
+//  p7  Diane        | referred (←c3)  | network         | yours         | network       | network
+//  p8  Amir Hossain | network         | network         | yours         | network       | network
+//  p9  Frances      | network         | network         | yours         | network       | network
+//  p10 Sophia       | network         | network         | network       | yours         | network
+//  p11 Rachel Nguyen| network         | seen_elsewhere  | network       | yours         | network
+//  p12 Liam Foster  | network         | network         | network       | network       | yours
+//  p13 Ruby Chen    | network         | network         | seen_elsewhere| network       | yours
+//  p14 Tom Brekke   | yours           | referred (←c1)  | network       | network       | network
+//      (geographic referral — continuity of care, not specialty handover)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const INITIAL_CLINICS = [
@@ -230,9 +252,13 @@ export const INITIAL_CLINICS = [
     sharing: true,
     shareCount: 8,
     receiveCount: 12,
-    referralsGiven: ["c3"],
+    referralsGiven: ["c2", "c3"],
     referralsReceived: ["c2", "c3"],
     cooldownUntil: null,
+    tier: 2,
+    optedOutAt: null,
+    pendingTier: null,
+    tierCooldownUntil: null,
   },
   {
     id: "c2",
@@ -243,8 +269,10 @@ export const INITIAL_CLINICS = [
     shareCount: 0,
     receiveCount: 0,
     referralsGiven: ["c1"],
-    referralsReceived: [],
+    referralsReceived: ["c1"],
     cooldownUntil: null,
+    tier: 2,
+    optedOutAt: null,
   },
   {
     id: "c3",
@@ -257,6 +285,8 @@ export const INITIAL_CLINICS = [
     referralsGiven: ["c1"],
     referralsReceived: ["c1"],
     cooldownUntil: null,
+    tier: 2,
+    optedOutAt: null,
   },
   {
     id: "c4",
@@ -271,6 +301,8 @@ export const INITIAL_CLINICS = [
     // Pre-seeded in cooldown so the reviewer sees this state on load.
     // Expires ~20 seconds after page load.
     cooldownUntil: Date.now() + COOLDOWN_MS,
+    tier: 2,
+    optedOutAt: Date.now(), // just opted out — retention countdown starts now
   },
   {
     id: "c5",
@@ -283,5 +315,7 @@ export const INITIAL_CLINICS = [
     referralsGiven: [],
     referralsReceived: [],
     cooldownUntil: null,
+    tier: 1, // Tier 1 demo — diagnosis only; demonstrates the on-ramp contrast
+    optedOutAt: null,
   },
 ];

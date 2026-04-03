@@ -1,120 +1,111 @@
-# Kinetic Network — Incentive-Driven Patient History Sharing
+# Kinetic Network
 
-A working prototype built for the Heidi Health Product Growth challenge.
-
-**Live demo:** `cd kinetic-network && npm install && npm run dev`
+**Live demo:** `cd kinetic-network && npm install && npm run dev` → http://localhost:5173
 
 ---
 
-## The problem
+## What this is
 
-Kinetic is a B2B SaaS platform used by 1,800 independent physiotherapy clinics. Patients increasingly see multiple physios across locations and specialties, but each clinic treats them as a brand-new patient.
-
-Clinics have asked for shared patient history. But incentives are misaligned:
-
-- **71%** want to receive history from other clinics
-- **19%** want to share theirs
-- Primary fear: *"I don't want to help patients switch to competitors."*
-- Secondary fear: *"What if another physio judges my treatment?"*
-
-This is not a policy problem. It is an incentive design problem. The goal is to get opt-in from 80%+ of clinics.
+A working prototype built as a submission for Heidi Health's Entry Program Product Growth challenge. Kinetic is a fictional B2B SaaS platform used by 1,800 independent physiotherapy clinics. The problem: only 19% of clinics share patient history despite 71% wanting to receive it. This prototype demonstrates a system that makes sharing the rational, selfish choice.
 
 ---
 
-## The system
+## The two fears blocking sharing
 
-The design rests on one insight: **you don't need to convince clinics to be generous. You need to make sharing the selfish choice.**
-
-Five mechanisms do that — three that create positive incentives, two that close off the ways to game the system.
-
-### 1. Share-gate
-
-Access to the shared patient history network is contingent on opting in to share. A clinic that wants to receive must share first — access is granted on opt-in and revoked in real time on opt-out.
-
-This converts the 71% who want to receive into active sharers. The cost of not sharing (losing access to a network you want) now outweighs the fear of sharing. The share-gate alone closes most of the gap from 19% to 80%.
-
-### 2. Referral network
-
-Clinics can refer patients to other clinics that specialise in areas outside their scope. Sending a referral establishes a bilateral relationship: the specialist gets the patient, the referring clinic gets future patients referred back for general care.
-
-This reframes the competitive dynamic entirely. Sharing is no longer *"I might lose this patient"* — it is *"I am building a network that sends patients to me."* This captures the remaining holdouts for whom the share-gate alone is not enough.
-
-### 3. Source anonymisation
-
-Patient treatment history is shared across the network. The originating clinic and clinician are always redacted. A receiving clinic sees diagnosis, treatment history, and clinical notes — but never which clinic or practitioner produced them.
-
-This eliminates the professional judgment fear completely. There is no way to identify whose work you are reading.
-
-### 4. Opt-out cooldown
-
-A clinic that opts out loses access immediately and cannot re-enrol for 30 days. This closes off the obvious exploit: opt in, harvest the full patient history you need, then opt out to stop reciprocating while keeping what you gained. The 30-day lockout makes this irrational — the cost of leaving outweighs any short-term benefit.
-
-The prototype demos this with a 20-second cooldown so the state is observable. Eastern Women's Health starts in cooldown on page load with a live countdown in the control bar.
-
-### 5. Patient consent
-
-Patient records are only visible in the network once the patient has explicitly consented to sharing. Only the originating clinic — the clinic that owns the record — can grant or revoke consent. Other clinics viewing a non-consented record see an "Awaiting consent" badge with no interactive option. Consent granted by the origin clinic propagates immediately across the network.
-
-This reflects the real-world legal constraint: HIPAA requires patient authorisation for sharing records between non-treating providers. The system is not viable without it. A natural extension is tiered consent — a patient can consent to share with any clinic in the network, or only with clinics their current provider has referred them to, which reinforces the referral network mechanism.
+- **Fear 1:** "I'll help patients switch to competitors."
+- **Fear 2:** "Other physios will judge my treatment quality."
 
 ---
 
-## How 19% becomes 80%
+## The three core mechanisms
 
-The current 19% is an equilibrium produced entirely by misaligned incentives. Sharing is a purely altruistic act with no upside and real competitive downside. Receiving is free.
+**Share-gate** — access to the network requires opt-in. The 71% who want to receive now have a direct personal incentive to share. Converts sharing from altruistic to transactional.
 
-The five mechanisms dismantle each blocker:
+**Referral network** — referring a patient builds a bilateral relationship. Specialists return patients for ongoing general care. Geographically mobile patients get referred between generalist clinics for continuity of care. Reframes sharing from "losing a patient" to "building a network."
 
-| Blocker | Mechanism | Effect |
+**Source anonymisation** — treatment history is shared but the originating clinic and clinician are always redacted. Eliminates the professional judgment fear entirely.
+
+---
+
+## Tiered sharing
+
+Clinics choose what they contribute:
+
+| Tier | What is shared | Access received |
 |---|---|---|
-| "Sharing helps competitors" | Share-gate | Sharing becomes the price of admission to a network you want |
-| "Sharing helps competitors" | Referral network | Sharing generates inbound referrals — net positive, not net negative |
-| "Colleagues will judge my work" | Source anonymisation | Identity is structurally hidden — judgment is impossible |
-| "I'll opt out once I've taken what I need" | Opt-out cooldown | Exit is costly — 30-day lockout makes gaming irrational |
-| Legal/compliance exposure | Patient consent | HIPAA-compliant by design — consent is required before any record is shared |
+| T1 — Diagnosis only | Condition / diagnosis | Diagnosis only |
+| T2 — Diagnosis + treatment | Condition + treatment history | Condition + treatment |
+| T3 — Full history | Condition + treatment + notes + outcomes | Full history |
 
-In the new equilibrium, sharing is the dominant strategy. Opting out means losing access to a network that improves your clinical work, losing referral relationships that generate inbound patients, and accepting a 30-day lockout. The rational clinic opts in and stays in.
+Access received from the network mirrors tier contributed. Lowers the barrier to entry for skeptical clinics and provides an on-ramp for early adoption: a clinic starts at Tier 1, sees value, moves up. All opted-in clinics default to Tier 2. Westside Paediatric Physio starts at Tier 1 to demonstrate the contrast.
+
+The tier selector is visible in each clinic's control panel alongside the opt-in/opt-out toggle.
+
+Upgrading is instant. Downgrading triggers a 7-day cooldown to prevent clinics from temporarily elevating their tier to harvest higher-quality records then immediately dropping back down.
 
 ---
 
-## Patient history — four-section layout
+## Safeguards
 
-The patient history tab segments records into four labelled sections based on each clinic's relationship to the patient. The section ordering is intentional: the highest-value information appears first.
+**30-day opt-out cooldown** — clinics that opt out lose access immediately and cannot re-enroll for 30 days. Prevents harvest-and-withdraw gaming. Simulated as a 20-second countdown in the prototype.
 
-| Section | Who sees it | What it shows |
-|---|---|---|
-| **Seen elsewhere** | Clinics where a patient is active but originated elsewhere | History from the network — this is the core value proposition |
-| **Your patients** | The clinic that originated the record | Always fully visible. Only this clinic can grant or revoke consent. |
-| **Referred in** | Clinics a patient has been formally referred to | Full access when opted in — referral implies pre-consent. Referring clinic name is shown (not redacted). |
-| **Network records** | All other clinics | Browsable when opted in and consented |
+**Data retention** — records received while opted in remain accessible for 24 months post opt-out in compliance with applicable health data regulations, then purge. Each frozen record card displays a live countdown. When the counter hits zero the card is replaced with a greyed tombstone: *"Record expired — re-enrollment required to restore access."* Simulated as a 30-second countdown (1 month per 1.25 seconds).
 
-When a clinic is opted out, "Seen elsewhere", "Referred in", and "Network records" still show patient names and conditions but immediately display a lock banner: *"Opt in to sharing to unlock this patient's history."* The cost of opting out is visible without requiring any clicks.
+**Patient consent** — records are only visible in the network once the patient has consented. Consent is owned by the originating clinic only. Non-origin clinics see "Awaiting consent" with no option to interact.
+
+**Cooldown hierarchy** — upgrading tier is instant. Downgrading tier triggers a 7-day cooldown. Opting out entirely triggers a 30-day cooldown. A clinic cannot bypass the tier downgrade cooldown by opting out — opting out applies the longer 30-day cooldown regardless. The penalty scales with the severity of withdrawal.
+
+---
+
+## 19% → 80% argument
+
+The current 19% is an equilibrium produced entirely by misaligned incentives — sharing is altruistic, receiving is free. The share-gate converts the 71% who want to receive into sharers by making sharing the price of admission. Tiered sharing removes the all-or-nothing barrier, giving skeptical clinics a low-risk entry point. The referral network captures remaining holdouts by turning sharing into a source of inbound patients. Source anonymisation removes the professional judgment fear. The cooldown and retention policy prevent gaming. Sharing becomes the dominant strategy.
+
+---
+
+## Known limitations and how they'd be addressed at scale
+
+**Cold start problem** — the network is thin early and value doesn't materialise until critical mass. Proposed fix: seed the early network with anonymised historical data, offer founding member status with premium feature access to clinics that opt in during the first 90 days, and launch geographically — one city at a time — rather than nationally.
+
+**Consent friction** — patient consent is legally correct but operationally burdensome if bolted on after intake. At scale, consent collection needs to be embedded in the patient intake workflow, not managed separately.
+
+**Generalist referral weakness partially addressed** — geographic patient mobility creates natural referral flow between generalist clinics even without specialty overlap. The prototype includes a pre-existing referral between Central Sports Physio and Bayside Rehabilitation with the note *"Patient relocated — referred for continuity of care."*
+
+---
+
+## Alternative architectures considered
+
+**Patient-driven portability** — patients control their own record sharing directly, removing the competitive dynamic between clinics entirely. Rejected as primary mechanism because patient adoption friction is high and the problem brief specifically asks for a clinic-level incentive solution.
+
+**Outcome transparency model** — sharing builds a clinic's publicly visible outcome score rather than gating access. Weaker incentive than the gate — reputational benefit is diffuse and slow. Better as a secondary feature than a primary mechanism.
+
+**Insurance/billing integration as Trojan horse** — shared history becomes a byproduct of billing workflows clinics are already running. Powerful but requires deep EHR and insurer integrations that are outside scope for an early-stage product. Worth revisiting at scale.
 
 ---
 
 ## Prototype walkthrough
 
-The app simulates 5 clinics at different points in the adoption curve. Each can be viewed from its own perspective.
+5 simulated clinics, each at a different point in the adoption curve.
 
 **Suggested path for reviewers:**
 
-1. **Open the app.** The network banner shows the current opt-in rate vs. the 80% target. Three clinics are sharing, two are not.
+1. **Open the app.** Network banner shows current opt-in rate vs. 80% target.
 
-2. **Select Eastern Women's Health.** The control bar shows a live cooldown countdown — this clinic recently opted out and is locked out of re-enrollment. Watch the countdown expire, then toggle sharing back on.
+2. **Select Eastern Women's Health.** Live cooldown countdown in the control bar — recently opted out. Watch it expire, then toggle sharing back on. On opted-out clinics, every non-owned record shows a retention countdown (*"Xmo remaining"*). At zero, the card becomes a tombstone.
 
-3. **Select Bayside Rehabilitation** (sharing off). In the patient history tab, the "Seen elsewhere" section appears at the top with an amber banner: *"2 patients active here have history in the network that you can't access."* The lock banners are visible immediately — no clicking required. This is the cost of opting out made visceral.
+3. **Select Westside Paediatric Physio.** This clinic is opted in at Tier 1. Expand a network record — only the diagnosis is visible. Switch to T2 in the tier selector and watch treatment history appear. Switch to T3 and watch clinical notes unlock.
 
-4. **Toggle sharing on.** The lock banners disappear. Nina Brooks (seen elsewhere, consented) unlocks immediately. James Okafor (seen elsewhere, no consent) stays locked with "Awaiting consent" — because Bayside doesn't own that record, they cannot grant consent themselves.
+4. **Select Bayside Rehabilitation** (sharing off). The amber banner shows how many patients are inaccessible. Each non-owned record shows the opt-in lock and a retention countdown if the clinic has an opt-out timestamp.
 
-5. **Switch to Central Sports Physio.** Under "Your patients", Priya Sharma shows "Not shared". Click "Grant consent" — her record is now visible to the network. Note that only Central Sports sees this button; other clinics viewing Priya's record see "Awaiting consent" with no option to interact.
+5. **Toggle Bayside sharing on.** Records unlock based on consent status. James Okafor and Nina Brooks are visible (consented). Priya Sharma stays locked — awaiting consent from Central Sports Physio, the originating clinic.
 
-6. **Expand a consented network record.** Every non-owned record shows `Source: [redacted]` in the expanded view. The anonymisation is structural — there is no way to reveal the originating clinic or clinician.
+6. **Switch to Central Sports Physio.** Under "Your patients", Priya Sharma shows "Not shared." Click "Grant consent" — the record is now visible network-wide. Only Central Sports sees this button. Other clinics see "Awaiting consent" with no option to interact.
 
-7. **Switch to the Referral network tab.** Send a referral to another clinic. Watch the bilateral relationship form — both clinics now show the connection as active. Switch to the referred-to clinic and check the "Referred in" section — the patient appears there with a "Referred by [clinic name]" badge (source is not redacted for referrals — the receiving clinic knows who sent them) and full access to the clinical history.
+7. **Check the Referral network tab on Central Sports.** The c1 → c2 relationship card shows *"Patient relocated — referred for continuity of care."* — a geographic generalist referral, pre-existing in the default state.
 
-8. **Toggle sharing off on any clinic.** The control bar immediately switches to the cooldown state. Access is revoked instantly and re-enrollment is locked.
+8. **Switch to Bayside and check "Referred in".** Tom Brekke appears with the "Referred by Central Sports Physio" badge and full clinical access (referral implies pre-consent).
 
-9. **Toggle all 5 clinics to sharing on.** The banner hits 100%. All five mechanics are visible end-to-end.
+9. **Toggle all 5 clinics to sharing on.** Banner hits 100%. All mechanics are visible end-to-end.
 
 ---
 
@@ -139,7 +130,7 @@ npm run dev
 kinetic-network/
   src/
     App.jsx       # All UI components and state logic
-    data.js       # Simulated clinic and patient data (13 patients, 5 clinics)
+    data.js       # Simulated clinic and patient data (14 patients, 5 clinics)
     classify.js   # classifyPatient(patient, clinicId) — pure classification helper
     index.css     # Tailwind import
   index.html
