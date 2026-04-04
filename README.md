@@ -1,6 +1,7 @@
 # Kinetic Network
 
-**Live demo:** `cd kinetic-network && npm install && npm run dev` → http://localhost:5173
+**Live demo:** https://kinetic-network-one.vercel.app
+**Local:** `cd kinetic-network && npm install && npm run dev` → http://localhost:5173
 
 ---
 
@@ -68,6 +69,8 @@ The current 19% is an equilibrium produced entirely by misaligned incentives —
 **Cold start problem** — the network is thin early and value doesn't materialise until critical mass. Proposed fix: seed the early network with anonymised historical data, offer founding member status with premium feature access to clinics that opt in during the first 90 days, and launch geographically — one city at a time — rather than nationally.
 
 **Consent friction** — patient consent is legally correct but operationally burdensome if bolted on after intake. At scale, consent collection needs to be embedded in the patient intake workflow, not managed separately.
+
+**Data retention compliance** — the 24-month retention window is a proposed default. Actual retention periods are jurisdiction-specific — HIPAA (US) requires 6 years, GDPR (EU) requires deletion on request, and Australian Privacy Principles require 7-10 years depending on state. The system would need configurable retention windows per market.
 
 **Generalist referral weakness partially addressed** — geographic patient mobility creates natural referral flow between generalist clinics even without specialty overlap. The prototype includes a pre-existing referral between Central Sports Physio and Bayside Rehabilitation with the note *"Patient relocated — referred for continuity of care."*
 
