@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Layers,
 } from "lucide-react";
+import { Analytics } from '@vercel/analytics/react';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -571,7 +572,7 @@ function ReferralPanel({ clinic, clinics, patients, onRefer }) {
   );
 }
 
-// ─── Control panel ───────────────────────────────────────────────────────────
+// ─── Control panel ──��────────────────────────────────────────────────────────
 
 function ControlPanel({ clinic, onToggleSharing, onSetTier }) {
   const cooldownSecs = useCooldownSeconds(clinic.cooldownUntil);
@@ -934,6 +935,7 @@ export default function App() {
           {toast}
         </div>
       )}
+      <Analytics />
     </div>
   );
 }
